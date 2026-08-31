@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "Outbreak Trust"
+description = "A live public-health data verification service that compares outbreak reports from DHIS2 and WHO sources, creates reconciled evidence snapshots, and anchors tamper-evident hashes on Polygon testnet."
+version = "1.0.0"
+id = "artifacts/outbreak-trust"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 23558
+
+[services.development]
+run = "pnpm --filter @workspace/outbreak-trust run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/outbreak-trust", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/outbreak-trust/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "23558"
+BASE_PATH = "/"

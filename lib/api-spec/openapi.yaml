@@ -3,13 +3,15 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Outbreak Trust verification service API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: verification
+    description: Public-health source comparison and verification operations
 paths:
   /healthz:
     get:
@@ -24,6 +26,102 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /verification/summary:
+    get:
+      operationId: getVerificationSummary
+      tags: [verification]
+      summary: Get verification dashboard summary
+      responses:
+        "200":
+          description: Current verification summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VerificationSummary"
+  /verification/runs:
+    get:
+      operationId: listVerificationRuns
+      tags: [verification]
+      summary: List verification runs
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: number
+            minimum: 1
+            maximum: 50
+            default: 20
+      responses:
+        "200":
+          description: Verification runs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/VerificationRun"
+    post:
+      operationId: createVerificationRun
+      tags: [verification]
+      summary: Compare source data and create a verification run
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VerificationRunInput"
+      responses:
+        "201":
+          description: Created verification run
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VerificationRun"
+        "422":
+          description: Sources are not configured or could not be compared
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /verification/runs/{id}:
+    get:
+      operationId: getVerificationRun
+      tags: [verification]
+      summary: Get a verification run by id
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Verification run
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VerificationRun"
+        "404":
+          description: Verification run not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /verification/sources:
+    get:
+      operationId: getSourceStatuses
+      tags: [verification]
+      summary: Get configured source and chain statuses
+      responses:
+        "200":
+          description: Source connection statuses
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SourceStatus"
 components:
   schemas:
     HealthStatus:
@@ -33,4 +131,118 @@ components:
           type: string
       required:
         - status
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required: [error]
+    SourceStatus:
+      type: object
+      properties:
+        id:
+          type: string
+        label:
+          type: string
+        kind:
+          type: string
+          enum: [source, chain]
+        status:
+          type: string
+          enum: [connected, pending, unavailable, demo]
+        detail:
+          type: string
+        lastCheckedAt:
+          type: string
+          format: date-time
+        network:
+          type: ["string", "null"]
+        explorerUrl:
+          type: ["string", "null"]
+      required: [id, label, kind, status, detail, lastCheckedAt, network, explorerUrl]
+    VerificationSummary:
+      type: object
+      properties:
+        totalRuns:
+          type: number
+        anchoredRuns:
+          type: number
+        sourceAgreement:
+          type: number
+        recordsCompared:
+          type: number
+        lastVerifiedAt:
+          type: ["string", "null"]
+        latestHash:
+          type: ["string", "null"]
+        latestTxHash:
+          type: ["string", "null"]
+      required: [totalRuns, anchoredRuns, sourceAgreement, recordsCompared, lastVerifiedAt, latestHash, latestTxHash]
+    VerificationRunInput:
+      type: object
+      properties:
+        geography:
+          type: string
+          minLength: 2
+        indicator:
+          type: string
+          minLength: 2
+        period:
+          type: string
+          minLength: 4
+        anchor:
+          type: boolean
+          default: true
+      required: [geography, indicator, period]
+    VerificationRun:
+      type: object
+      properties:
+        id:
+          type: number
+        geography:
+          type: string
+        indicator:
+          type: string
+        period:
+          type: string
+        status:
+          type: string
+          enum: [anchored, verified, needs-review, failed]
+        agreement:
+          type: number
+        recordsCompared:
+          type: number
+        sourceResults:
+          type: array
+          items:
+            $ref: "#/components/schemas/SourceResult"
+        report:
+          type: string
+        contentHash:
+          type: string
+        txHash:
+          type: ["string", "null"]
+        explorerUrl:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, geography, indicator, period, status, agreement, recordsCompared, sourceResults, report, contentHash, txHash, explorerUrl, createdAt]
+    SourceResult:
+      type: object
+      properties:
+        source:
+          type: string
+        status:
+          type: string
+          enum: [matched, diverged, unavailable, demo]
+        value:
+          type: ["number", "null"]
+        unit:
+          type: string
+        observedAt:
+          type: string
+        note:
+          type: string
+      required: [source, status, value, unit, observedAt, note]
 
